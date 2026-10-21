@@ -1,0 +1,9 @@
+parts: 40   pads: 123   nets: 47
+ERRORS: none
+perfboard comparison: 53 Zero / amp pins checked against hub_layout.py
+copper: 304 trace segments, 17 vias
+ground stitching vias: 25
+ground fill F.Cu: 14 pieces, closest to an edge / slot / hole 0.47 mm
+ground fill B.Cu: 3 pieces, closest to an edge / slot / hole 0.47 mm
+traces: closest to an edge / slot / hole 0.46 mm
+KiCad DRC, counted but not errors: courtyards_overlap (accepted) 49, lib_footprint_issues 44, silk_overlap 143, starved_thermal 9

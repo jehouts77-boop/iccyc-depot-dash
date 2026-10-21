@@ -1,0 +1,6 @@
+# per-unit files that live only on the device - never commit
+secrets.py
+config.json
+error.log
+*.tmp
+__pycache__/
