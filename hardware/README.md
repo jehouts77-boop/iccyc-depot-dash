@@ -55,6 +55,8 @@ board.
 | `hub_pcb_revA_gerbers.zip` | **the order files** - upload this to a board maker (rev A was made by OSH Park) |
 | `hub-pcb-parts-list.md` | what to buy to populate it, with part numbers |
 | `hub-board-build.md` | what goes where, every off-board wire, and the build log |
+| `hub-pcb-solder-guide.md` | **how to solder and check the board**, step by step, with pictures (in `hub-pcb-solder-guide/`) |
+| `hub_pcb_steps.py` | draws those pictures from `hub_pcb.kicad_pcb` (needs matplotlib only, not KiCad): `python hub_pcb_steps.py` |
 | `hub_pcb_copper.png`, `hub_pcb_kicad_view.png`, `hub_pcb_placement.png` | pictures of the board |
 | `hub_layout.py` | the netlist in practice: every connection and hole, with checks; writes `hub_holes.json` and `hub-board-layout.png` |
 | `hub_pcb.py` | builds the KiCad board from `hub_layout.py`'s output, routes it (`hub_router.py`), runs KiCad's design-rule check, draws the pictures and writes the Gerbers. Needs KiCad 7's Python module (`pcbnew`). Run `python hub_layout.py` first, then `python hub_pcb.py` |
