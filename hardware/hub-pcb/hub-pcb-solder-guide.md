@@ -2,6 +2,14 @@
 
 **Status:** written before the first boards were built. The steps and pictures are drawn from the board file (`hub_pcb.kicad_pcb`) and checked against `hub_pcb.py`; `hub_pcb_steps.py` redraws the pictures.
 
+> **⚠ Three corrections for rev A, found on the first board. Do all three from the start.** Details, picture and meter checks: **`hub-revA-rework.md`**.
+>
+> 1. **Leave out both 5-pin bottom sockets** (under 0x11 and under 0x10): the real Zero's bottom five pins sit one row higher than the board's bottom-row holes. Instead, solder **6 short wires** from the SPARE holes to the empty bottom-row holes and use the matching firmware (0x11 fw 0.4, 0x10 fw 1.3, in `coproc/`). That makes steps 4 and 5 "9 + 9" sockets per Zero, and about 86 joints plus 12 wire joints a board.
+> 2. **Solder the PRESTO JST-PH socket turned round** (half a turn from its outline: the deeper part of the housing toward the **top** of the board). The Pololu PH–PH lead crosses over, so as printed the Presto would get reversed power. **POWER IN stays as printed.** With the turned socket the lead's black wire carries +5 V; that's expected.
+> 3. **Sand the board's edge nubs flush first (step 0), and use hub shelf rev E2** (`hardware/enclosure/stl/p1_hub_shelf_revE2_print.stl`).
+>
+> The step pictures below still show the 5-pin sockets and the PRESTO socket the original way round. Go by this box where they differ.
+
 This replaces the perfboard's solder order (`hub-board-build.md`, section 4) for the PCB. The circuit is the same; the board file is the source for what goes where.
 
 **Orientation, everywhere in this guide (as in every project doc):** parts side facing you, the board as it sits on the hub shelf seen from the back of the panel — **"ICCYC CONTROL CONSOLE" along the top, "HUB REV A · 2026" bottom right.** When you flip the board to solder, left and right swap; the solder side has its own labels (0x11, 0x10, AMP, KNOB, GAUGE I / II, POWER IN, PRESTO, SWITCHES + LIGHTS) so you can tell which part's pins you're looking at.
@@ -48,7 +56,7 @@ This replaces the perfboard's solder order (`hub-board-build.md`, section 4) for
 | Male pin strip (40) | 1 strip, broken into **12, 7, 7, 5, 4** (35 pins, 5 left over) | switch row 12, GAUGE I 7, GAUGE II 7, KNOB 5, Qw/ST 4 (step 2) |
 | JST-PH 2-pin socket, upright | 2 | POWER IN, PRESTO (step 3) |
 | Female socket, 9-pin | 4 | each Zero's left and right side (steps 4, 5) |
-| Female socket, 5-pin | 2 | each Zero's bottom edge (steps 4, 5) |
+| ~~Female socket, 5-pin~~ | **0** | ~~each Zero's bottom edge~~: left out on rev A (box at the top); instead 6 insulated wires, about 1–3 cm each |
 | Female socket, 7-pin | 1 | the amp (step 4) |
 
 **Break the pin strip** with pliers at the notch between pins, or bend it over a table edge. Count pins, not millimetres.
@@ -74,7 +82,7 @@ Build **one board all the way through section 8** before starting the other two.
 ### Step 0 — the bare board, before any solder
 
 1. **Look it over** against the overview picture: the lettering, the cable slot between the Zeros, the four corner holes.
-2. **Lay the bare board in the P1 rev E1 hub-shelf pocket.** It should sit flat on the ledge all round without being forced. If it doesn't fit, stop here: the fix is in the printed shelf (`hardware/enclosure/parts.scad`), not the board.
+2. **Sand the edge nubs flush, then lay the bare board in the P1 rev E2 hub-shelf pocket** (box at the top; originally rev E1). It should sit flat on the ledge all round without being forced. If it doesn't fit, stop here: the fix is in the printed shelf (`hardware/enclosure/parts.scad`), not the board.
 3. **Meter, beep mode:** touch the POWER IN pads' two holes (+ and −). **No beep.** Then the **5V** and **3V3** SPARE holes beside POWER IN: no beep. This catches a board fault before any parts hide it.
 
 ### Step 1 — Ra and Rb, 330 Ω (4 joints)

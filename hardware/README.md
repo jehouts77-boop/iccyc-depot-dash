@@ -34,7 +34,7 @@ you look at the back of the panel.
 | `body_revE_plain_print.stl` | the same body without the grain |
 | `back_plate_revE_print.stl` | removable back plate (printed black); sits 2 mm into the body, 4 × M3 × 8 screws, holds the USB-C power socket |
 | `panel_revE_print.stl` + `panel_labels_revE_print.stl` | the front panel and its inlaid labels: load both together in Bambu Studio as one object with two parts (labels part = cream filament, panel = black); supports on the build plate under the three front recesses |
-| `p1_hub_shelf_revE1_print.stl` | the shelf the hub board sits on, behind the Presto |
+| `p1_hub_shelf_revE2_print.stl` | the shelf the hub board sits on, behind the Presto (rev E2: a roomier pocket for the rev A board) |
 | `parts_revD5_print.stl` | all the small parts on one plate |
 | `p3_gauge_retainers_revD5_print.stl`, `p4_knob_fluted_revD4_print.stl` | the gauge retainers and the knob on their own |
 | `bezels_revD_print.stl`, `p5_screen_frame_revD_print.stl`, `p6_gauge_ring_revD_print.stl`, `p7_knob_ring_revD_print.stl` | the bezels, all together or one by one |
@@ -55,6 +55,7 @@ board.
 | `hub_pcb_revA_gerbers.zip` | **the order files** - upload this to a board maker (rev A was made by OSH Park) |
 | `hub-pcb-parts-list.md` | what to buy to populate it, with part numbers |
 | `hub-board-build.md` | what goes where, every off-board wire, and the build log |
+| `hub-revA-rework.md` | **read first: three corrections rev A needs** (6 wires for the Zeros' bottom row, the PRESTO socket turned round, sand the edge nubs), with `hub_revA_rework_wires.png` |
 | `hub-pcb-solder-guide.md` | **how to solder and check the board**, step by step, with pictures (in `hub-pcb-solder-guide/`) |
 | `hub_pcb_steps.py` | draws those pictures from `hub_pcb.kicad_pcb` (needs matplotlib only, not KiCad): `python hub_pcb_steps.py` |
 | `hub_pcb_copper.png`, `hub_pcb_kicad_view.png`, `hub_pcb_placement.png` | pictures of the board |

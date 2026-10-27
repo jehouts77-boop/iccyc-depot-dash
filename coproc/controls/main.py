@@ -1,4 +1,8 @@
-# coproc/controls/main.py - the Controls co-processor (0x11) firmware, fw 0.3.
+# coproc/controls/main.py - the Controls co-processor (0x11) firmware, fw 0.4.
+# fw 0.4 (2026-10-25): pins moved for the hub PCB rev A. The board's 5-pin socket under each Zero
+# sits one row too low for the real Zero, so it stays empty and the pilot lights and amp move to
+# side pins, joined to the old holes by five short wires (hub-revA-rework.md). Only the two pin
+# lines below changed. fw 0.3 (GP9-GP13) stays on the breadboard desk rig.
 # Added to the repo 2026-10-14 exactly as it runs on the boards: it began as the
 # validation script controls_test.py (header below) and was confirmed on hardware
 # 2026-09-30. It implements the whole Controls part of docs/i2c-protocol.md.
@@ -30,8 +34,8 @@
 #   Encoder A -> GP2, encoder B -> GP3, encoder C (middle pin) -> GND
 #   Encoder push-button: one pin -> GP4, other pin -> GND
 #   Toggle switches: one leg -> GP5 / GP6 / GP7 / GP8, other leg -> GND
-#   Pilot LEDs: GP9 / GP10 -> resistor -> LED long leg (+); LED short leg (-) -> GND
-#   Amp (MAX98357A): BCLK -> GP11, LRC -> GP12, DIN -> GP13, Vin -> 5V, GND -> GND
+#   Pilot LEDs: GP29 (WiFi) / GP28 (OTA) -> resistor  [fw 0.3: GP9 / GP10] -> LED long leg (+); LED short leg (-) -> GND
+#   Amp (MAX98357A): BCLK -> GP26, LRC -> GP27, DIN -> GP15 [fw 0.3: 11 / 12 / 13], Vin -> 5V, GND -> GND
 
 import time
 import os
@@ -41,14 +45,14 @@ import micropython
 from machine import Pin, PWM, I2CTarget, I2S
 
 ADDR = 0x11
-FW_MAJOR, FW_MINOR = 0, 3
+FW_MAJOR, FW_MINOR = 0, 4
 
 PIN_ENC_A = 2
 PIN_ENC_B = 3
 PIN_BTN = 4
 SWITCH_PINS = (5, 6, 7, 8)     # bit 0 CHIME, 1 DAY-NIGHT, 2 BACKLIGHT, 3 WIFE MODE
-LED_PINS = (9, 10)             # WiFi, OTA
-PIN_BCLK, PIN_LRC, PIN_DIN = 11, 12, 13   # LRC must be BCLK + 1 (RP2040 rule)
+LED_PINS = (29, 28)            # WiFi, OTA   (fw 0.3: 9, 10)
+PIN_BCLK, PIN_LRC, PIN_DIN = 26, 27, 15   # LRC must be BCLK + 1 (RP2040 rule)   (fw 0.3: 11, 12, 13)
 
 STEPS_PER_DETENT = 4   # confirmed 2026-09-30: one click = 1
 ENC_REVERSE = False    # confirmed 2026-09-30: clockwise counts up

@@ -6,12 +6,14 @@ gauges, a knob, four toggle switches, two pilot lights and a chime speaker, in a
 3D-printed case with an engraved brass nameplate. ICCYC = a running
 joke among friends.
 
-**Status (2026-10-14):** every screen is built. Running on a real unit so far:
-the screen ring, Home menu, knob, switches, chime schedule, gauges, Diagnostics,
-WiFi setup, the on-screen settings, smooth text, the Overhead planes page and
-checking GitHub for updates. Built and tested in a simulator, not yet on a unit:
-the ISS page and its ham-radio listener, the BACK TO CLOCK setting, the latest
-On This Day months. Three units are being built for Christmas 2026; the case
+**Status (2026-10-26):** every screen is built and has run on a real unit: the
+screen ring, Home menu, knob, switches, chime schedule, gauges, Diagnostics,
+WiFi setup, the on-screen settings, smooth text, the Overhead planes and ISS
+pages (the ham-radio listener connects; a real ISS hearing hasn't shown on a
+unit yet), BACK TO CLOCK, every month of On This Day, and checking GitHub for
+updates (a real over-the-air update is still to be tested). The first console
+is fully assembled on the hub PCB. Three units are being built for Christmas
+2026; the case
 and hub board files are in [`hardware/`](hardware/README.md).
 
 This README is written so that someone - or an AI assistant - with no other
@@ -163,7 +165,8 @@ During development, WiFi can instead come from a `secrets.py` on the Presto
 - **Switches** (up = on; DAY · NIGHT: up = day, down = night). In the code a
   closed switch = the non-normal state, and `switch_invert` (one bit per switch:
   1 CHIME, 2 DAY·NIGHT, 4 BACKLIGHT, 8 WIFE MODE) flips any that end up
-  upside-down at assembly. CHIME mutes the chime; DAY/NIGHT picks day or night brightness (manual, no
+  upside-down at assembly. With the toggles mounted as in this panel (each closes when
+  up), up = on needs `"switch_invert": 7` in `/config.json`. CHIME mutes the chime; DAY/NIGHT picks day or night brightness (manual, no
   automatic dimming); BACKLIGHT turns the Presto and gauge screens off and dims
   the pilot lights (the clock and chime keep running); WIFE MODE mutes the
   chime and uses night brightness, with no on-screen announcement.

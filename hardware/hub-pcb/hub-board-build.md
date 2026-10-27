@@ -138,7 +138,7 @@ On hand: perfboard, 330 Ω resistors, both Zeros, the amp, male pin strips, the 
 kit's plain JST-SH cable fits the Presto's port — checked 2026-10-09**). **Not on hand: female
 header strips** (corrected 2026-10-09).
 
-**Hub shelf:** print **`stl\p1_hub_shelf_revE1_print.stl`** (2026-10-09; pocket 70.4 × 50.4, fits
+**Hub shelf:** *(for the rev A PCB use `stl\p1_hub_shelf_revE2_print.stl`, see `hub-revA-rework.md`)* print **`stl\p1_hub_shelf_revE1_print.stl`** (2026-10-09; pocket 70.4 × 50.4, fits
 the A1 Mini, top face down as before). Only the board frame changed — posts, fingers, deck height
 and the board's centre are as in the confirmed rev D1. Sandbox-checked, not printed. The combined
 `stl\parts_revD5_print.stl` still holds the old shelf — don't print P1 from it.

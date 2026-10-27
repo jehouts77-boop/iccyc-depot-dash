@@ -44,6 +44,13 @@
 // presses onto the 1.6 mm pins and stays — confirmed by Jason. The
 // looser trial B (2.2 mm, notched) is dropped; both retainers are A.
 //
+// rev E2 (2026-10-25, hub shelf only): the hub PCB (70 x 50, edges sanded
+// flush) caught at the corners of the printed pocket. The model gave
+// 0.2 mm a side and the print came out 70.2 x 50.2 (Jason, calipers).
+// Now hub_pocket_clear = 0.5 mm a side (pocket 71.0 x 51.0) plus a
+// round relief at each corner for the board's square corners. Nothing
+// else changed: frame, ledge opening, zip-tie slots, posts, fingers.
+//
 // rev E1 (2026-10-09, hub shelf only): the perfboard pocket was
 // modelled at 61 x 46 and the real board is 70 x 50 (Jason,
 // calipers) - it did not fit. perf_w / perf_h corrected in
@@ -57,6 +64,8 @@
 include <common.scad>
 
 eps = 0.01;
+hub_pocket_clear    = 0.5;   // rev E2: room around the hub board, each side (was 0.2; printed 0.1)
+hub_corner_relief_r = 1.0;   // rev E2: round relief centred on each board corner (square PCB corners)
 pb  = panel_thick;
 plate_face_z = plate_z0 + plate_t;   // 5.4: back face of the aluminium plate
 PART = "all";          // all | shelf | strap | retainers | knob
@@ -113,8 +122,11 @@ module hub_shelf_front() {
                 rrect(f[0], f[1], f[2], f[3], plate_face_z - finger_press, shelf_z + eps);
         }
         // perfboard locating pocket, 1 mm deep in the top face
-        rrect(perf_cx - perf_w/2 - 0.2, perf_cx + perf_w/2 + 0.2,
-              perf_cy - perf_h/2 - 0.2, perf_cy + perf_h/2 + 0.2, deck_top_z - 1, deck_top_z + 1);
+        rrect(perf_cx - perf_w/2 - hub_pocket_clear, perf_cx + perf_w/2 + hub_pocket_clear,
+              perf_cy - perf_h/2 - hub_pocket_clear, perf_cy + perf_h/2 + hub_pocket_clear, deck_top_z - 1, deck_top_z + 1);
+        for (sx = [-1, 1]) for (sy = [-1, 1])
+            translate([perf_cx + sx*perf_w/2, perf_cy + sy*perf_h/2, deck_top_z - 1])
+                cylinder(r = hub_corner_relief_r, h = 2, $fn = 32);
         // screw clearance at the posts
         for (p = shelf_post_pts) translate([p[0], p[1], shelf_z - 1]) cylinder(d = screw_clear_d, h = deck_t + 2);
     }

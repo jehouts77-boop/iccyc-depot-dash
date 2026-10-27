@@ -1,4 +1,11 @@
-# main.py - ICCYC Depot Dashboard, Gauges co-processor (0x10) firmware v1.1
+# main.py - ICCYC Depot Dashboard, Gauges co-processor (0x10) firmware v1.3
+# v1.3 (2026-10-26): both gauge pictures turned half a turn (GAUGE_USD = True, the driver's
+# "upside down" setting). In the panel the gauge modules sit the other way up from the
+# breadboard, so v1.2 drew upside down there (found on the first assembled unit). Nothing
+# else changed. The breadboard desk rig keeps v1.1.
+# v1.2 (2026-10-25): Gauge II's reset moved from GP9 to GP15 for the hub PCB rev A (its 5-pin
+# socket stays empty; one short wire joins GP15's spare hole to the old RST2 hole -
+# hub-revA-rework.md). Nothing else changed. v1.1 (GP9) stays on the breadboard desk rig.
 #
 # Runs on the RP2040-Zero at I2C address 0x10. Drives both round GC9A01 gauge
 # screens and follows the Presto over I2C, using the Gauges part of
@@ -41,16 +48,17 @@ import machine
 from machine import Pin, SPI
 
 ADDR = 0x10
-FW_MAJOR, FW_MINOR = 1, 1
+FW_MAJOR, FW_MINOR = 1, 3
 CPU_HZ = 200_000_000     # tested clean 2026-09-29
 SPI_BAUD = 60_000_000    # tested clean 2026-09-29
 FLIP_Y = False           # confirmed 2026-09-30 (red square showed upper-left)
+GAUGE_USD = True         # v1.3: turn both pictures half a turn (modules sit the other way up in the panel)
 GLIDE_MS_PER_UNIT = 7.5  # GLIDE register -> ms: default 40 = 300 ms (picked 2026-09-30)
 SWEEP_MS = 1400          # each half of the startup / SWEEP needle sweep
 FRAME_MS = 10            # shortest frame; the loop sleeps if a frame is quicker
 
 PIN_SCK, PIN_MOSI = 2, 3
-GAUGE_PINS = ((4, 5, 6), (7, 8, 9))   # (cs, dc, rst) for Gauge I, Gauge II
+GAUGE_PINS = ((4, 5, 6), (7, 8, 15))  # (cs, dc, rst) for Gauge I, Gauge II   (v1.1: rst II = 9)
 
 # ---- Registers ----
 R_MAGIC, R_BOARD, R_PROTO, R_FW_MAJ, R_FW_MIN = 0x00, 0x01, 0x02, 0x03, 0x04
@@ -122,7 +130,7 @@ displays = []
 try:
     for cs, dc, rst in GAUGE_PINS:
         displays.append(SSD(spi, Pin(cs, Pin.OUT, value=1), Pin(dc, Pin.OUT, value=0),
-                            Pin(rst, Pin.OUT, value=1)))
+                            Pin(rst, Pin.OUT, value=1), usd=GAUGE_USD))
         gc.collect()
     # one plain background frame per gauge: face, ticks, numbers, label
     backgrounds = [framebuf.FrameBuffer(bytearray(W * H // 2), W, H, framebuf.GS4_HMSB)

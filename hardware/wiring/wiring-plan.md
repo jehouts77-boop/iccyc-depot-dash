@@ -111,10 +111,16 @@ regulator whose limit isn't published. **Not recommended.**
 | GP6 | Gauge I **RST** | | |
 | GP7 | Gauge II **CS** | | |
 | GP8 | Gauge II **DC** | | GP8/GP9 share a corner of the Zero — easy to swap |
-| GP9 | Gauge II **RST** | | |
+| GP9 | Gauge II **RST** | | **Hub PCB rev A: moved to GP15** (0x10 fw 1.2 and later; `hardware/hub-pcb/hub-revA-rework.md`). GP9 on a hand-wired board |
 
 Module pin order on the gauge board: **VCC GND SCL SDA DC CS RST** — DC comes
 *before* CS (reverse of the GPIO order). Wire by label.
+
+**Picture orientation in the panel:** the panel's gauge mount holds the
+modules the other way up from how they sat on the breadboard, so the gauges drew
+upside down. 0x10 **fw 1.3** turns both pictures half a turn (`GAUGE_USD = True`,
+the driver's "upside down" setting). A board wired on a breadboard, with the
+modules the original way up, wants `GAUGE_USD = False`.
 
 **SPI at 60 MHz:** fine on breadboard jumpers in M1. Keep the SCK/MOSI runs
 **short (< ~15 cm) and equal-ish**, and route them away from the speaker
@@ -137,11 +143,11 @@ wires. If noise ever shows up, dropping `SPI_BAUD` to 30 MHz costs little
 | GP6 | DAY·NIGHT toggle | other leg → GND |
 | GP7 | BACKLIGHT toggle | other leg → GND |
 | GP8 | WIFE MODE toggle | other leg → GND |
-| GP9 | 330 Ω → WiFi pilot LED + (long leg) | LED − → GND |
-| GP10 | 330 Ω → OTA pilot LED + | LED − → GND |
-| GP11 | Amp **BCLK** | |
-| GP12 | Amp **LRC** | must stay BCLK + 1 |
-| GP13 | Amp **DIN** | |
+| GP9 | 330 Ω → WiFi pilot LED + (long leg) | LED − → GND. **Hub PCB rev A: GP29** (0x11 fw 0.4) |
+| GP10 | 330 Ω → OTA pilot LED + | LED − → GND. **Hub PCB rev A: GP28** |
+| GP11 | Amp **BCLK** | **Hub PCB rev A: GP26** |
+| GP12 | Amp **LRC** | must stay BCLK + 1. **Hub PCB rev A: GP27** |
+| GP13 | Amp **DIN** | **Hub PCB rev A: GP15** |
 | — | Amp **Vin** ← hub 5 V rail; Amp **GND** ← hub GND | today Vin comes from 0x11's 5V pin; on the rail instead so amp peaks don't pass through the Zero |
 | — | Amp **+ / −** screw terminal → speaker | twist the pair; keep away from the SPI wires |
 
@@ -151,6 +157,18 @@ That's one ground wire to the hub instead of seven. *(2026-10-11: on the PCB eac
 
 Which way is "on" for each toggle doesn't matter now: `switch_invert` in the
 config flips any switch after assembly.
+
+**Found on the first assembled unit:**
+- **Toggles:** mounted as in the panel, each toggle is closed when **up**. For
+  "up = on" (DAY · NIGHT: up = day) that needs **`"switch_invert": 7`** in the
+  Presto's `/config.json` (flips CHIME, DAY·NIGHT and BACKLIGHT; WIFE MODE is
+  already right, because for it closed = on). Check on Diagnostics: all four up
+  reads `CdLW`.
+- **Knob direction:** clockwise must count **up** on Diagnostics (= the next
+  screen). Seen from the back of the panel, left and right swap, so the
+  encoder's two outer pins (A and B) are easy to swap by mistake; the knob then
+  runs backwards. Fix: swap the **A** and **B** plugs on the hub's KNOB header
+  (no code change).
 
 ---
 
