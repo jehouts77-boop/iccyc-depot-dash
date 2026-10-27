@@ -1,6 +1,6 @@
 # Controls co-processor (0x11)
 
-`main.py` here is the firmware the 0x11 boards run (fw 0.4: the pin numbers for the hub PCB rev A, see `hardware/hub-pcb/hub-revA-rework.md`; fw 0.3 used GP9-GP13 for the lights and amp). It began as the
+`main.py` here is the firmware the 0x11 boards run (fw 0.5: the pin numbers for the hub PCB rev A, see `hardware/hub-pcb/hub-revA-rework.md` (fw 0.4; fw 0.3 used GP9-GP13 for the lights and amp), plus a separate brightness for the OTA light, register 0x23 (fw 0.5)). It began as the
 validation script `controls_test.py` and implements the whole Controls part of
 `docs/i2c-protocol.md`: knob, button, switches, pilot lights and chime playback.
 Confirmed on hardware 2026-09-30; added to this repo on 2026-10-14 (unchanged apart from a header note).
