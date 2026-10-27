@@ -58,6 +58,7 @@ T_HEAD = 36
 class UI:
     def __init__(self, display):
         self.d = display
+        self.muted = False         # set by the app each frame: draws the mute icon in headers
         self.pens = {k: display.create_pen(*rgb) for k, rgb in COLOURS.items()}
         try:
             display.set_font("bitmap8")
@@ -97,6 +98,19 @@ class UI:
     def rect(self, x, y, w, h, colour):
         self.pen(colour)
         self.d.rectangle(x, y, w, h)
+
+    def mute_icon(self, x, y, s, colour):
+        """A speaker with a small X beside it (the chime is muted), s pixels
+        tall, top-left at (x, y). Plain shapes (2026-10-26)."""
+        d = self.d
+        self.pen(colour)
+        d.rectangle(int(x), int(y + s * 0.32), max(2, int(s * 0.22)), max(2, int(s * 0.36)))
+        d.polygon([(int(x + s * 0.18), int(y + s * 0.32)), (int(x + s * 0.5), int(y)),
+                   (int(x + s * 0.5), int(y + s)), (int(x + s * 0.18), int(y + s * 0.68))])
+        t = max(2, int(s / 9 + 0.5))
+        a, b = x + s * 0.66, x + s * 1.02
+        d.line(int(a), int(y + s * 0.3), int(b), int(y + s * 0.7), t)
+        d.line(int(a), int(y + s * 0.7), int(b), int(y + s * 0.3), t)
 
     # ---------- clip box (the Clock's seconds hand redraws only a small box) ----------
     def clip(self, box):
@@ -242,8 +256,11 @@ class UI:
                 self.btext(right, W - 16, 22, 2, "dim", "right")
             return
         self.text(title, 16, 16, T_HEAD, "amber")
+        rx = W - 16
         if right:
-            self.text(right, W - 16, 20, T_BODY, "dim", "right")
+            rx = self.text(right, W - 16, 20, T_BODY, "dim", "right") - self.text_w(right, T_BODY)
+        if self.muted:                     # the chime is muted: a small icon left of the clock
+            self.mute_icon(rx - 38, 18, 22, "dim")
 
     def footer(self, prev_name, next_name):
         self.rect(0, FOOTER_Y, W, H - FOOTER_Y, "panel")

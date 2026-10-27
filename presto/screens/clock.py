@@ -41,6 +41,8 @@ SEC_TAIL = 40
 WINDOW_Y = 292            # middle of the time window
 WINDOW_W, WINDOW_H = 112, 40
 MAKER_Y = 170
+MUTE_S = 22               # the mute icon (2026-10-26): height, and where it sits
+MUTE_AT = "top"           # "top" = between 24 and the maker's name; "window" = left of the time window
 
 ROMAN = ("XII", "I", "II", "III", "IIII", "V", "VI", "VII", "VIII", "IX", "X", "XI")
 GLYPH_W = {"I": 7, "V": 22, "X": 22}
@@ -181,6 +183,11 @@ class Clock(Screen):
         for i in range(12):                      # the red 13-24 ring
             x, y = _pt(R_24, 0, i * 30)
             u.text(str(i + 12 if i else 24), x, y - 8, 24, "red", "center")
+        if u.muted:
+            if MUTE_AT == "window":
+                u.mute_icon(CX - WINDOW_W // 2 - MUTE_S - 14, WINDOW_Y - MUTE_S // 2, MUTE_S, "brass")
+            else:
+                u.mute_icon(CX - MUTE_S // 2 - 2, MAKER_Y - MUTE_S - 12, MUTE_S, "brass")
         c = app.cfg["clock"]
         u.text(c["maker"], CX, MAKER_Y, 36, "cream", "center")
         u.text(app.cfg["location"]["name"], CX, MAKER_Y + 32, 24, "brass", "center")

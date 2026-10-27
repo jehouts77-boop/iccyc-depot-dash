@@ -135,9 +135,10 @@ class LanternTime(Screen):
         u.text(hm(t["set"]), U.W - 16, 90, 34, "text", "right")
         if al.length is not None:
             s = "DAYLIGHT " + span(al.length)
-            if al.change_s:
+            if al.change_s:              # vs yesterday (2026-10-26: was "-2 M 20 S", unclear)
                 c = abs(al.change_s)
-                s += "  %s%d M %02d S" % ("+" if al.change_s > 0 else "-", c // 60, c % 60)
+                d = ("%d M %02d S" % (c // 60, c % 60)) if c >= 60 else ("%d S" % c)
+                s += ", %s %s" % (d, "LONGER" if al.change_s > 0 else "SHORTER")
             u.text(s, 20, FOOT_Y, 24, "text")
         u.text("FIRST LIGHT " + hm(t["dawn"]), 20, FOOT_Y + 24, 24, "dim")
         u.text("%s %d%%" % (al.moon[2], int(al.moon[1] * 100 + 0.5)), U.W - 20, FOOT_Y + 24,

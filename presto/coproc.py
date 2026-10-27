@@ -271,8 +271,13 @@ class Controls(Board):
         return ev
 
     # -- outputs --
-    def leds(self, wifi_mode, ota_mode, bright):
-        self._leds = bytes((wifi_mode, ota_mode, max(0, min(255, int(bright)))))
+    def leds(self, wifi_mode, ota_mode, bright, ota_bright=None):
+        """bright = the WiFi light (0x22); ota_bright = the OTA light (0x23, Controls
+        fw 0.5 and later; an older board ignores it and uses 0x22 for both)."""
+        if ota_bright is None:
+            ota_bright = bright
+        clamp = lambda v: max(0, min(255, int(v)))
+        self._leds = bytes((wifi_mode, ota_mode, clamp(bright), clamp(ota_bright)))
 
     def play(self, clip, volume):
         self._play = (self._play + 1) & 0xFF

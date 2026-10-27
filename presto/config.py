@@ -75,10 +75,15 @@ DEFAULTS = {
     "long_press_ms": 800,
 
     # Brightness (on-screen settings). Presto screen 0.0-1.0; gauges 1-255
-    # (their colours are scaled); pilot lights 0-255.
-    "bright_day": {"screen": 1.0, "gauges": 255, "leds": 255},
-    "bright_night": {"screen": 0.25, "gauges": 90, "leds": 50},
-    "leds_dark": 12,               # pilot lights while BACKLIGHT is off
+    # (their colours are scaled); pilot lights 0-255: "leds" = the WiFi light,
+    # "ota_led" = the OTA light (its own level since 2026-10-26: the green LED
+    # is much brighter than the amber one at the same setting; needs Controls
+    # fw 0.5 - older boards use "leds" for both).
+    # 2026-10-26 defaults from the first assembled unit (Jason): day WiFi light
+    # 5/10, night gauges 6/10 (they looked dimmer than the screen at 90).
+    "bright_day": {"screen": 1.0, "gauges": 255, "leds": 128, "ota_led": 51},
+    "bright_night": {"screen": 0.25, "gauges": 153, "leds": 50, "ota_led": 25},
+    "leds_dark": 12,               # both pilot lights while BACKLIGHT is off
 
     # Switch positions: bit 0 CHIME, 1 DAY-NIGHT, 2 BACKLIGHT, 3 WIFE MODE.
     # The Controls board reports 1 when a switch is CLOSED (to GND). With

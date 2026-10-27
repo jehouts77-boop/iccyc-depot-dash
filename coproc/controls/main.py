@@ -1,4 +1,8 @@
-# coproc/controls/main.py - the Controls co-processor (0x11) firmware, fw 0.4.
+# coproc/controls/main.py - the Controls co-processor (0x11) firmware, fw 0.5.
+# fw 0.5 (2026-10-26): the OTA light gets its own brightness, register 0x23 LED_OTA_BRIGHT
+# (protocol v0.3); 0x22 LED_BRIGHT is now the WiFi light only. The green OTA LED is much
+# brighter than the amber WiFi one at the same setting (found on the first assembled unit).
+# 0x23 starts at 255 like 0x22; the Presto writes both. Nothing else changed.
 # fw 0.4 (2026-10-25): pins moved for the hub PCB rev A. The board's 5-pin socket under each Zero
 # sits one row too low for the real Zero, so it stays empty and the pilot lights and amp move to
 # side pins, joined to the old holes by five short wires (hub-revA-rework.md). Only the two pin
@@ -45,7 +49,7 @@ import micropython
 from machine import Pin, PWM, I2CTarget, I2S
 
 ADDR = 0x11
-FW_MAJOR, FW_MINOR = 0, 4
+FW_MAJOR, FW_MINOR = 0, 5
 
 PIN_ENC_A = 2
 PIN_ENC_B = 3
@@ -68,7 +72,7 @@ R_HEARTBEAT, R_FLAGS, R_FAULT, R_LOOP_MS, R_FREE_KB, R_WRITES, R_BOOT_ID = 0x05,
 R_ENC, R_BTN_DOWN, R_BTN_UP, R_BTN_STATE, R_SWITCHES, R_SWITCH_COUNT = 0x10, 0x11, 0x12, 0x13, 0x14, 0x15
 R_AUDIO_STATE, R_AUDIO_DONE, R_CLIP_COUNT = 0x16, 0x17, 0x18
 R_BOOT_ID_COPY = 0x19   # v0.1: same value as 0x0B
-R_LED_WIFI, R_LED_OTA, R_LED_BRIGHT = 0x20, 0x21, 0x22
+R_LED_WIFI, R_LED_OTA, R_LED_BRIGHT, R_LED_OTA_BRIGHT = 0x20, 0x21, 0x22, 0x23   # 0x23: fw 0.5
 R_CLIP, R_VOLUME, R_PLAY, R_STOP = 0x30, 0x31, 0x32, 0x33
 # Test-only diagnostics in the chime block's reserved space (not in the protocol):
 R_DIAG_REFILLS = 0x3C   # refills done, wraps at 256
@@ -81,6 +85,7 @@ mem[0], mem[1], mem[2], mem[3], mem[4] = 0xC5, ADDR, 0, FW_MAJOR, FW_MINOR
 mem[R_BOOT_ID] = os.urandom(1)[0]
 mem[R_BOOT_ID_COPY] = mem[R_BOOT_ID]
 mem[R_LED_BRIGHT] = 255
+mem[R_LED_OTA_BRIGHT] = 255
 mem[R_VOLUME] = 128
 
 
@@ -397,10 +402,9 @@ def loop_once():
         stop_clip()
 
     # pilot lights (squared brightness looks more even to the eye)
-    b = mem[R_LED_BRIGHT] / 255
-    for pwm, reg in zip(leds, (R_LED_WIFI, R_LED_OTA)):
-        lvl = led_level(mem[reg], t0)
-        pwm.duty_u16(int(65535 * (lvl * b) ** 2))
+    for pwm, reg, breg in zip(leds, (R_LED_WIFI, R_LED_OTA), (R_LED_BRIGHT, R_LED_OTA_BRIGHT)):
+        lvl = led_level(mem[reg], t0) * mem[breg] / 255
+        pwm.duty_u16(int(65535 * lvl ** 2))
 
     # diagnostics
     mem[R_HEARTBEAT] = (mem[R_HEARTBEAT] + 1) & 0xFF

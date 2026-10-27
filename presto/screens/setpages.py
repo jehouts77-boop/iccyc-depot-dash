@@ -40,6 +40,10 @@ class Page(Screen):
     hold = True               # the app's "idle -> back to the Clock" leaves these pages alone
     note = "TAP A ROW, THEN - / + OR TURN THE KNOB"
     extra = ""                # label of the button at the bottom right, if any
+    # row layout (a page with more rows packs them tighter: BRIGHTNESS)
+    row_y, row_pitch, row_h = ROW_Y, ROW_PITCH, ROW_H
+    row_size, text_dy, bar_dy, bar_h, btn_dy, btn_h = 28, 14, 12, 22, 3, 40
+    note_y = 386
 
     def __init__(self):
         self.sel = None
@@ -111,8 +115,8 @@ class Page(Screen):
         elif self.extra and inside(B_EXTRA, x, y):
             self.on_extra(app)
         else:
-            i = (y - ROW_Y) // ROW_PITCH
-            if y >= ROW_Y and 0 <= i < len(self.rows(app)):
+            i = (y - self.row_y) // self.row_pitch
+            if y >= self.row_y and 0 <= i < len(self.rows(app)):
                 if i == self.sel and x >= U.W - 124:
                     self._change(app, -1 if x < U.W - 68 else 1)
                 else:
@@ -130,31 +134,32 @@ class Page(Screen):
         for i in todo:
             if i is None or i >= len(rows):
                 continue
-            y = ROW_Y + i * ROW_PITCH
-            app.ui.rect(0, y - 2, U.W, ROW_H + 4, "bg")
+            y = self.row_y + i * self.row_pitch
+            app.ui.rect(0, y - 2, U.W, self.row_h + 4, "bg")
             self._row(app.ui, i, rows[i])
-            y0, y1 = min(y0, y - 2), max(y1, y + ROW_H + 2)
+            y0, y1 = min(y0, y - 2), max(y1, y + self.row_h + 2)
         return (0, y0, U.W, y1 - y0) if y1 > y0 else None
 
     def _row(self, u, i, row):
         name, kind, val = row
-        y = ROW_Y + i * ROW_PITCH
+        y = self.row_y + i * self.row_pitch
         on = i == self.sel
         if on:
-            u.rect(8, y, U.W - 16, ROW_H, "panel")
-            u.rect(8, y, 4, ROW_H, "amber")
-        u.text(name, 24, y + 14, 28, "amber" if on else "text")
+            u.rect(8, y, U.W - 16, self.row_h, "panel")
+            u.rect(8, y, 4, self.row_h, "amber")
+        u.text(name, 24, y + self.text_dy, self.row_size, "amber" if on else "text")
         if kind == "bar":
             n, of = val
             pitch = 24 if of <= 6 else 16
             for k in range(of):
-                u.rect(VAL_X + k * pitch, y + 12, pitch - 4, 22,
+                u.rect(VAL_X + k * pitch, y + self.bar_dy, pitch - 4, self.bar_h,
                        ("amber" if on else "text") if k < n else "line")
         else:
-            u.text(val, VAL_X, y + 14, 28, "cream" if on else "text", max_w=162 if on else 270)
+            u.text(val, VAL_X, y + self.text_dy, self.row_size, "cream" if on else "text",
+                   max_w=162 if on else 270)
         if on:
-            button(u, (U.W - 122, y + 3, 52, 40), "-", "bg", "amber", 34)
-            button(u, (U.W - 64, y + 3, 52, 40), "+", "bg", "amber", 34)
+            button(u, (U.W - 122, y + self.btn_dy, 52, self.btn_h), "-", "bg", "amber", 34)
+            button(u, (U.W - 64, y + self.btn_dy, 52, self.btn_h), "+", "bg", "amber", 34)
 
     def draw(self, app):
         u = app.ui
@@ -163,7 +168,7 @@ class Page(Screen):
         rows = self.rows(app)
         for i in range(len(rows)):
             self._row(u, i, rows[i])
-        u.text(self.note_for(app), U.W // 2, 386, 20, "dim", "center")
+        u.text(self.note_for(app), U.W // 2, self.note_y, 20, "dim", "center")
         button(u, B_BACK, "< SETTINGS", "dim", size=24)
         if self.extra:
             button(u, B_EXTRA, self.extra, "amber", size=24)
@@ -223,8 +228,12 @@ class ChimePage(Page):
 
 # brightness: (name, config group, key, lowest step, config value at the top step)
 LEVELS = (("DAY SCREEN", "bright_day", "screen", 1, 1.0), ("DAY GAUGES", "bright_day", "gauges", 1, 255),
-          ("DAY LIGHTS", "bright_day", "leds", 0, 255), ("NIGHT SCREEN", "bright_night", "screen", 1, 1.0),
-          ("NIGHT GAUGES", "bright_night", "gauges", 1, 255), ("NIGHT LIGHTS", "bright_night", "leds", 0, 255))
+          ("DAY WIFI", "bright_day", "leds", 0, 255), ("DAY OTA", "bright_day", "ota_led", 0, 255),
+          ("NIGHT SCREEN", "bright_night", "screen", 1, 1.0),
+          ("NIGHT GAUGES", "bright_night", "gauges", 1, 255),
+          ("NIGHT WIFI", "bright_night", "leds", 0, 255), ("NIGHT OTA", "bright_night", "ota_led", 0, 255))
+# 2026-10-26: the two pilot lights got their own rows (WIFI, OTA: the green OTA LED is much
+# brighter than the amber WiFi one), so the eight rows sit tighter than on the other pages.
 
 
 def _level(cfg, row):
@@ -235,6 +244,9 @@ def _level(cfg, row):
 class BrightPage(Page):
     title = "BRIGHTNESS"
     short = "BRIGHT"
+    row_y, row_pitch, row_h = 64, 40, 36
+    row_size, text_dy, bar_dy, bar_h, btn_dy, btn_h = 24, 9, 8, 20, 1, 34
+    note_y = 391
 
     def rows(self, app):
         return [(r[0], "bar", (_level(app.cfg, r), 10)) for r in LEVELS]

@@ -10,7 +10,16 @@
 #
 # Like the Model 100 project, responses are hand-scanned for the few fields
 # needed instead of parsed whole, and capped with max_bytes.
+#
+# 2026-10-26: the weather service's own quality check sometimes blanks a
+# reading the station did send (seen on KSUS's 23:54 UTC report: 15 C in the
+# report text, "value": null with qualityControl "Z" for the temperature and
+# the humidity - most likely because it fell 4 C in an hour at sunset). The
+# screen then showed "--". When that happens the temperature (and dew point)
+# are read from the report's own text (the METAR in "rawMessage"), and a
+# blank humidity is worked out from the temperature and dew point.
 
+import math
 import time
 import net
 from textutil import ascii_safe
@@ -63,6 +72,46 @@ def _qv(body, name):
     return net.json_num_after(body, '"value":', i)
 
 
+def metar_temps(raw):
+    """(temperature C, dew point C) from a METAR report's text; either may be
+    None. Uses the remarks' tenths group (T01500106 = 15.0 / 10.6) when it is
+    there, else the main group (15/11, M02/M05 = minus)."""
+    t = td = None
+    if not raw:
+        return t, td
+    words = raw.split()
+    for w in words:                                  # T + sign + 3 digits, twice
+        if len(w) == 9 and w[0] == "T" and w[1:].isdigit() and w[1] in "01" and w[5] in "01":
+            t = int(w[2:5]) / 10 * (-1 if w[1] == "1" else 1)
+            td = int(w[6:9]) / 10 * (-1 if w[5] == "1" else 1)
+            return t, td
+    for w in words:
+        if w == "RMK":
+            break
+        a, sep, b = w.partition("/")
+        if not sep or w.endswith("SM") or w[0] == "R":
+            continue
+
+        def whole(x):
+            neg = x.startswith("M")
+            x = x[1:] if neg else x
+            if len(x) == 2 and x.isdigit():
+                return -int(x) if neg else int(x)
+            return None
+        ta = whole(a)
+        if ta is not None and (b == "" or whole(b) is not None):
+            return float(ta), (None if b == "" else float(whole(b)))
+    return t, td
+
+
+def humidity_from(t_c, td_c):
+    """Relative humidity (%) from temperature and dew point (Magnus formula)."""
+    if t_c is None or td_c is None:
+        return None
+    f = lambda x: math.exp(17.625 * x / (243.04 + x))
+    return max(0.0, min(100.0, 100.0 * f(td_c) / f(t_c)))
+
+
 def parse_observation(body):
     """Dict of readings (US units) from /observations/latest. Missing = None."""
     p = body.find('"properties"')
@@ -74,16 +123,28 @@ def parse_observation(body):
     feels_c = _qv(body, "heatIndex")
     if feels_c is None:
         feels_c = _qv(body, "windChill")
+    temp_c = _qv(body, "temperature")
+    dew_c = _qv(body, "dewpoint")
+    rh = _qv(body, "relativeHumidity")
+    if temp_c is None or dew_c is None:              # blanked by the quality check: use the report text
+        raw = net.json_str_after(body, '"rawMessage": "') or net.json_str_after(body, '"rawMessage":"')
+        mt, md = metar_temps(raw)
+        if temp_c is None:
+            temp_c = mt
+        if dew_c is None:
+            dew_c = md
+    if rh is None:
+        rh = humidity_from(temp_c, dew_c)
     return {
         "station": net.json_str_after(body, '"stationId": "') or net.json_str_after(body, '"stationId":"'),
         "time": iso_to_utc(net.json_str_after(body, '"timestamp": "') or
                            net.json_str_after(body, '"timestamp":"')),
         "text": ascii_safe(net.json_str_after(body, '"textDescription": "') or
                            net.json_str_after(body, '"textDescription":"')),
-        "temp_f": c_to_f(_qv(body, "temperature")),
-        "dewpoint_f": c_to_f(_qv(body, "dewpoint")),
+        "temp_f": c_to_f(temp_c),
+        "dewpoint_f": c_to_f(dew_c),
         "feels_f": c_to_f(feels_c),
-        "humidity": _qv(body, "relativeHumidity"),
+        "humidity": rh,
         "wind_dir": wind_dir,
         "wind_mph": kmh_to_mph(wind_kmh),
         "gust_mph": kmh_to_mph(_qv(body, "windGust")),

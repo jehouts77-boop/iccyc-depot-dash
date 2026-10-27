@@ -110,6 +110,12 @@ class App:
     def local(self):
         return timeutil.local(self.cfg["tz"])
 
+    def chime_muted(self):
+        """True while the chime would stay silent (any reason)."""
+        if not timeutil.clock_set():
+            return not self.chime_on or self.wife_mode or self.cfg["chime"]["mode"] == "off"
+        return self.chime.muted(self.cfg, self.local(), self.chime_on, self.wife_mode) != ""
+
     def clock_text(self):
         return timeutil.hhmm(self.local()) if timeutil.clock_set() else ""
 
@@ -127,7 +133,7 @@ class App:
     def restart(self):
         """After an update was installed (or undone): start again with the new files."""
         try:
-            self.controls.leds(coproc.LED_OFF, coproc.LED_FAST, self.led_bright)
+            self.controls.leds(coproc.LED_OFF, coproc.LED_FAST, self.led_bright, self.ota_bright)
             self.controls.sync()
         except Exception:
             pass
@@ -179,19 +185,21 @@ class App:
         if self.dark:
             self.presto.set_backlight(0)
             self.gauges.backlight(0)          # gauges: display-off command (1.8c)
-            led_bright = self.cfg["leds_dark"]
+            led_bright = ota_bright = self.cfg["leds_dark"]
         else:
             self.presto.set_backlight(lv["screen"])
             self.gauges.backlight(lv["gauges"])
             led_bright = lv["leds"]
+            ota_bright = lv.get("ota_led", led_bright)
         self.led_bright = led_bright
+        self.ota_bright = ota_bright
         self.update_leds()
 
     def update_leds(self):
         wifi_mode = {"up": coproc.LED_ON, "connecting": coproc.LED_SLOW,
                      "failed": coproc.LED_FAST}.get(self.wifi_state, coproc.LED_OFF)
         ota_mode = (coproc.LED_OFF, coproc.LED_ON, coproc.LED_SLOW, coproc.LED_FAST)[self._ota_led]
-        self.controls.leds(wifi_mode, ota_mode, self.led_bright)         # OTA light: 5.13
+        self.controls.leds(wifi_mode, ota_mode, self.led_bright, self.ota_bright)   # OTA light: 5.13
 
     # ---------- readings for the gauges ----------
     def update_data(self):
@@ -281,6 +289,12 @@ class App:
                 self.need_full = True             # the time on screen just jumped
             else:
                 self.ntp_next = time.ticks_add(now, NTP_RETRY_S * 1000)
+        # the mute icon (2026-10-26): shown whenever the chime wouldn't sound -
+        # CHIME switch, WIFE MODE, quiet hours or chime mode off
+        muted = self.chime_muted()
+        if muted != self.ui.muted:
+            self.ui.muted = muted
+            self.need_full = True
         # the ISS listener: read whatever has arrived (never waits)
         if self.listener.poll() and self.screen.key == "overhead":
             self.need_full = True
@@ -388,6 +402,7 @@ class App:
         except Exception:
             pass
         self.led_bright = self.cfg["bright_day"]["leds"]
+        self.ota_bright = self.led_bright
         self.apply_lighting()
         self.wifi_setup()
         self.every_second(time.ticks_ms())

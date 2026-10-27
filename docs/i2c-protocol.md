@@ -1,10 +1,10 @@
 > Copy of the builder's working protocol doc, refreshed 2026-10-14. "Roadmap" numbers refer to the builder's own plan, not a file here.
 
-# ICCYC Depot Dashboard — I2C Protocol v0.2
+# ICCYC Depot Dashboard — I2C Protocol v0.3
 
 Created 2026-09-28 (roadmap step 1.2). This defines how the Presto talks to the two RP2040-Zero co-processors. Background is in `iccyc-depot-dashboard-plan.md`, and the proven link test is in the roadmap, 1.6 and 1.7.
 
-**Status: v0.2 (2026-09-30).** v0 approved 2026-09-28; v0.1 adds a BOOT_ID copy to the Controls input block; v0.2 adds READOUT_TEXT to each gauge block (see Change log). `controls_test.py` / `controls_presto_test.py` (roadmap 1.10) implement the Controls part. **2026-09-30: Gauges firmware v1.0 (`iccyc-depot-dash\coproc\gauges\main.py`) and the Presto driver (`iccyc-depot-dash\presto\coproc.py`) implement the full map — simulator-verified only, not yet run on hardware.** **2026-10-07: Gauges fw 1.1 and the Presto driver ran on hardware (M5 foundation desk test, passed): setup blocks, dial and compass, READOUT_TEXT, BACKLIGHT 0 / dimming, missing-board handling — confirmed by Jason, 0 bus errors.**
+**Status: v0.3 (2026-10-26): adds 0x23 LED_OTA_BRIGHT (Controls fw 0.5).** Before that v0.2 (2026-09-30). v0 approved 2026-09-28; v0.1 adds a BOOT_ID copy to the Controls input block; v0.2 adds READOUT_TEXT to each gauge block (see Change log). `controls_test.py` / `controls_presto_test.py` (roadmap 1.10) implement the Controls part. **2026-09-30: Gauges firmware v1.0 (`iccyc-depot-dash\coproc\gauges\main.py`) and the Presto driver (`iccyc-depot-dash\presto\coproc.py`) implement the full map — simulator-verified only, not yet run on hardware.** **2026-10-07: Gauges fw 1.1 and the Presto driver ran on hardware (M5 foundation desk test, passed): setup blocks, dial and compass, READOUT_TEXT, BACKLIGHT 0 / dimming, missing-board handling — confirmed by Jason, 0 bus errors.**
 
 ## The big idea, in plain words
 
@@ -136,7 +136,8 @@ Switches are debounced on the co-processor: a change only counts after it has he
 |---|---|---|
 | 0x20 | LED_WIFI | 0 = off, 1 = on, 2 = slow blink (1 per second), 3 = fast blink (4 per second), 4 = slow pulse (gentle fade in and out) |
 | 0x21 | LED_OTA | same choices as LED_WIFI |
-| 0x22 | LED_BRIGHT | 0–255, both lights (for example lower at night / WIFE MODE) |
+| 0x22 | LED_BRIGHT | 0–255, the WiFi light (for example lower at night / WIFE MODE). Before v0.3: both lights |
+| 0x23 | LED_OTA_BRIGHT | v0.3: 0–255, the OTA light (starts at 255). A fw 0.4-or-older board ignores it and uses 0x22 for both |
 | 0x23–0x2F | — | reserved |
 
 The blinking and fading run on the co-processor, so they stay steady even while the Presto is busy, for example downloading an update.
@@ -199,6 +200,7 @@ The blinking and fading run on the co-processor, so they stay steady even while 
 
 ## Change log
 
+- 2026-10-26 — **v0.3:** 0x23 LED_OTA_BRIGHT, so the two pilot lights can be set separately (the green OTA LED looked far brighter than the amber WiFi one at the same level on the first assembled unit). Controls fw 0.5 and the Presto driver implement it; the Presto writes 0x20–0x23 in one transfer.
 - 2026-09-28 — v0 drafted (roadmap 1.2). Not yet implemented.
 - 2026-09-29 — Open items added from the 1.8 gauge desk run: BACKLIGHT has no hardware pin; glide depends on partial redraw. No register changes.
 - 2026-09-29 — **v0.1 (approved by Jason):** Controls 0x19 = BOOT_ID copy; the Presto polls 10 bytes and checks it before the counters. Found in the 1.10 desk test: unplugging and replugging the Controls board made the Presto count a fake 0 ms button press and "switch changes 256" (8 real + 248 from the counter reset), because the restart was only noticed by the 1 s header check. Fix tested against a mocked bus: the same sequence now counts 4 presses (3 + 1 after the restart) and 8 switch changes.
