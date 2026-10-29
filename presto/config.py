@@ -81,6 +81,8 @@ DEFAULTS = {
     # fw 0.5 - older boards use "leds" for both).
     # 2026-10-26 defaults from the first assembled unit (Jason): day WiFi light
     # 5/10, night gauges 6/10 (they looked dimmer than the screen at 90).
+    # Confirmed on that unit 2026-10-29 (Jason): WiFi light day 5 / night 2,
+    # OTA light day 2 / night 1 (steps of 10) - the values below.
     "bright_day": {"screen": 1.0, "gauges": 255, "leds": 128, "ota_led": 51},
     "bright_night": {"screen": 0.25, "gauges": 153, "leds": 50, "ota_led": 25},
     "leds_dark": 12,               # both pilot lights while BACKLIGHT is off
