@@ -39,7 +39,7 @@ import ui as U
 import screens
 from screens import fitz as fitz_rules
 
-VERSION = "0.2"
+VERSION = "0.3"
 POLL_MS = 20
 CHIME_MS = 250
 LOOP_MS = 10

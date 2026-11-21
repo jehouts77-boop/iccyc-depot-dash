@@ -3,8 +3,11 @@
 # "RAW 11 HIDDEN 11 USABLE 0" is what cracks a bug).
 
 import gc
+import os
 import time
 import net
+import ota
+import otaguard as G
 import timeutil
 import ui as U
 from screens.base import Screen
@@ -21,6 +24,54 @@ class Diag(Screen):
 
     def __init__(self):
         self.last = 0
+        self.page = 0             # 0 = counters, 1 = UPDATE FILES (turn the knob; 2026-11-21)
+
+    def enter(self, app):
+        self.page = 0
+
+    def files(self, app):
+        """Page 2: the over-the-air update's own files, so an update problem can be
+        looked into without opening the case (added 2026-11-21, see ota.LOG)."""
+        o = app.ota
+        out = [("UPDATE FILES", "amber")]
+        out.append(("APP %s  tree %s  trial %s  undo %s" % (
+            app.VERSION, o.tree[:7] or "-", "YES" if o.trial else "no",
+            "YES" if o.can_undo() else "no"), "text"))
+        out.append(("   %s" % o.msg[:40], "dim"))
+        for name, path in (("PENDING", G.PENDING), ("UNDO NOTE", G.LAST), ("REFUSED", G.BAD)):
+            note = G._read(path)
+            if note is None:
+                out.append(("%s  none" % name, "dim"))
+            else:
+                out.append(("%s  %s  %s" % (name, note.get("tree", "")[:7], ",".join(
+                    note.get("files", ()))[:30] or note.get("why", "")[:30]), "text"))
+        out.append(("/app.py  %s" % ota.describe("/app.py"), "text"))
+        for folder in (G.OLD, G.NEW):
+            try:
+                names = sorted(os.listdir(G.ROOT + folder))
+            except OSError:
+                names = None
+            if names is None:
+                out.append(("%s  none" % folder, "dim"))
+                continue
+            out.append(("%s  %d" % (folder, len(names)), "text"))
+            for n in names[:3]:
+                out.append(("   %s  %s" % (n, ota.describe(folder + "/" + n)), "dim"))
+        out.append(("LOG (newest last)", "amber"))
+        try:
+            lines = open(G.ROOT + ota.LOG).read().splitlines()
+        except OSError:
+            lines = []
+        cfg_tz = app.cfg["tz"]
+        for ln in lines[-(20 - len(out)):]:
+            t, _, rest = ln.partition(" ")
+            try:
+                t = int(t)
+                when = timeutil.hhmm(timeutil.local(cfg_tz, t)) if t > 1_700_000_000 else "--:--"
+            except Exception:                  # (before the clock is set at start-up: --:--)
+                when = "--:--"
+            out.append(("%s %s" % (when, rest), "dim"))
+        return out
 
     def lines(self, app):
         out = []
@@ -102,13 +153,14 @@ class Diag(Screen):
         u.clear()
         u.header(self.title, app.clock_text(), plain=True)   # built-in font: see ui.py
         y = U.BODY_Y
-        for s, colour in self.lines(app):
+        for s, colour in (self.files(app) if self.page else self.lines(app)):
             if u.btext_w(s, 2) <= MAX_W:
                 u.btext(s, 10, y, 2, colour)
             else:                              # too wide: smaller, so nothing is lost
                 u.btext(s, 10, y + 4, 1, colour)
             y += LINE_H
-        u.hint("LONG-PRESS THE KNOB TO GO BACK", plain=True)
+        u.hint("TURN: UPDATE FILES   LONG-PRESS: BACK" if not self.page else
+               "TURN: COUNTERS   LONG-PRESS: BACK", plain=True)
 
     def tick(self, app, now):
         if time.ticks_diff(now, self.last) >= 1000:
@@ -117,7 +169,10 @@ class Diag(Screen):
         return None
 
     def on_knob(self, app, n):
-        return True           # knob does nothing here (keeps the counters on screen)
+        if n:                 # turning switches between the two pages (2026-11-21)
+            self.page ^= 1
+            self.last = 0     # redraw at once
+        return True
 
     def on_press(self, app):
         return True

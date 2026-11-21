@@ -49,6 +49,52 @@ FILE_MAX_BYTES = 400_000
 STATE = "/ota_state.json"
 CONFIRM_AFTER_S = 60          # the app must run this long before an update stands
 
+# Update log (added 2026-11-21): on the first real round trip (APP 0.1 -> 0.2,
+# then PUT BACK OLD) the bench unit refused 0.2 as it should but came back up
+# still running 0.2 - the file put back was not the old one. Nothing in the
+# code explains it (a desktop simulation of every short sequence puts 0.1
+# back), so each install / confirm / undo now writes what it found and did to
+# /ota_log.txt, shown on Diagnostics page 2 (turn the knob).
+LOG = "/ota_log.txt"
+LOG_MAX = 3000                # bytes; past this the older half is dropped
+
+
+def log(msg):
+    """Append one line to the update log. Never raises: logging must not stop an update."""
+    try:
+        line = "%d %s\n" % (time.time(), msg)
+        try:
+            old = open(G.ROOT + LOG).read()
+        except OSError:
+            old = ""
+        if len(old) + len(line) > LOG_MAX:
+            old = old[len(old) // 2:]
+            old = old[old.find("\n") + 1:]
+        with open(G.ROOT + LOG, "w") as f:
+            f.write(old + line)
+    except Exception as e:
+        print("ota log:", e)
+
+
+def describe(path):
+    """'v0.2 1a2b3c4' for an app.py, '1a2b3c4' for other files, 'NONE' if missing."""
+    sha = git_sha(path)
+    if sha is None:
+        try:
+            return "(folder)" if os.stat(G.ROOT + path)[0] & 0x4000 else "NONE"
+        except OSError:
+            return "NONE"
+    ver = ""
+    if path.endswith("app.py"):
+        try:
+            for ln in open(G.ROOT + path):
+                if ln.startswith("VERSION"):
+                    ver = "v" + ln.split("=", 1)[1].strip().strip('"') + " "
+                    break
+        except Exception:
+            pass
+    return ver + sha[:7]
+
 
 def git_sha(path):
     """The git fingerprint of a file on the Presto, or None if it isn't there."""
@@ -111,6 +157,10 @@ class Ota:
         self.undone = G.message               # otaguard undid an update at this start-up
         if self.undone:
             self.msg = self.undone
+            log("start-up: " + self.undone)
+        if self.trial:
+            note = G._read(G.PENDING) or {}
+            log("start-up on trial %s, try %s" % (note.get("tree", "")[:7], note.get("tries")))
 
     # ---------- what the screens ask ----------
     def busy(self):
@@ -152,6 +202,8 @@ class Ota:
                 G._write(G.LAST, note)        # kept so it can still be undone by hand
             G.remove(G.PENDING)
             self.trial = False
+            log("confirmed %s (undo note kept: %s)" % (
+                (note or {}).get("tree", "")[:7], G._read(G.LAST) is not None))
 
     # ---------- one request per call ----------
     def step(self):
@@ -232,6 +284,7 @@ class Ota:
         if free is not None and free < total + 100_000:
             return self._fail("NOT ENOUGH ROOM (%d KB NEEDED)" % (total // 1024 + 100))
         self.todo = todo
+        log("check %s: %d to get, running %s" % (new_tree[:7], len(todo), self.tree[:7] or "-"))
         self.queue = [("get", i) for i in range(len(todo))]
         self.state = "downloading"
         self.msg = "DOWNLOADING 1 OF %d" % len(todo)
@@ -276,12 +329,15 @@ class Ota:
         note = {"tree": self.new_tree, "from": self.tree, "files": files, "added": added,
                 "stage": "swapping", "tries": 0}
         G._write(G.PENDING, note)
+        log("install %s from %s: %d files" % (self.new_tree[:7], self.tree[:7] or "-", len(files)))
         for p in files:
+            before = describe(p)
             if G.exists(p):
                 G.make_dirs(G.OLD + p)
                 os.rename(G.ROOT + p, G.ROOT + G.OLD + p)
             G.make_dirs(p)
             os.rename(G.ROOT + G.NEW + p, G.ROOT + p)
+            log(" %s was %s; now %s, backup %s" % (p, before, describe(p), describe(G.OLD + p)))
         note["stage"] = "trial"
         G._write(G.PENDING, note)
         G.remove(G.BAD)
@@ -297,7 +353,16 @@ class Ota:
         note = G._read(G.LAST)
         if note is None or self.busy():
             return False
-        G.rollback(note, "put back by hand")
+        files = note.get("files", ())
+        before = [(p, describe(p), describe(G.OLD + p)) for p in files]
+        try:
+            n = G.rollback(note, "put back by hand")
+        except Exception as e:
+            log("undo %s FAILED: %s: %s" % (note.get("tree", "")[:7], type(e).__name__, e))
+            raise
+        log("undo %s: put back %d of %d" % (note.get("tree", "")[:7], n, len(files)))
+        for p, was, bk in before:
+            log(" %s was %s, backup %s -> now %s" % (p, was, bk, describe(p)))
         self.tree = note.get("from", "")
         self._save()
         self.msg = "OLD VERSION PUT BACK - RESTARTING"

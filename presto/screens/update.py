@@ -36,7 +36,10 @@ class Update(Screen):
 
     def _stamp(self, app):
         o = app.ota
-        return (o.state, o.msg, self.sure_at is not None)
+        # o.trial added 2026-11-21: the page did not redraw when the trial minute
+        # ended, so the trial line stayed up and PUT BACK OLD never appeared
+        # (though a tap where it should be still worked).
+        return (o.state, o.msg, self.sure_at is not None, o.trial)
 
     def tick(self, app, now):
         if self.sure_at is not None and time.ticks_diff(now, self.sure_at) > SURE_MS:
