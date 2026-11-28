@@ -9,6 +9,13 @@
 #   welcome -> scan -> pick a network -> type the password -> joining ->
 #   connected (saved to /config.json) or couldn't join (nothing changed).
 #
+# APP 0.4 (2026-11-28): with a network saved, the WIFI row opens a "saved"
+# page first: the network, CONNECTED or not, CHANGE NETWORK (the list as
+# before) and FORGET. FORGET asks first (the knob's press = KEEP IT), then
+# wipes the network and password from /config.json, hangs up and shows the
+# welcome page - the unit is then as on its first start (roadmap 7.2, and
+# the way to clear a gift unit's WiFi before it is wrapped).
+#
 # Touch does everything. The knob works too: on the list it moves the
 # highlight and a press chooses; on the keyboard it steps from key to key and
 # a press types that key - slower, but exact.
@@ -113,6 +120,10 @@ class WifiSetup(Screen):
     B_DONE = (140, 400, 200, 60)
     B_RETRY = (24, 400, 210, 60)
     B_OTHER = (246, 400, 210, 60)
+    B_CHANGE = (60, 300, 360, 60)         # saved page
+    B_FORGET = (320, 410, 148, 58)
+    B_KEEP = (24, 400, 210, 60)           # forget page
+    B_WIPE = (246, 400, 210, 60)
 
     def __init__(self):
         self.page = "welcome"
@@ -133,11 +144,19 @@ class WifiSetup(Screen):
         self.why = ""
         self.ip = ""
         self.scans = self.joins = self.fails = 0
+        self.drawn_state = None   # the WiFi state the saved page was drawn with
+        self.forgets = 0
 
     # ---------- opening and closing ----------
     def open(self, app, first=False):
         self.first = first
-        self.page = "welcome" if first else "scan"
+        self.why = ""
+        if first:
+            self.page = "welcome"
+        elif app.wifi_creds()[0]:
+            self.page = "saved"                # APP 0.4: show what is saved first
+        else:
+            self.page = "scan"
         app.show(self)
 
     def enter(self, app):
@@ -165,6 +184,26 @@ class WifiSetup(Screen):
             self.nets, self.scan_error = [], res
         self.sel = self.top = 0
         self.page = "pick"
+
+    # ---------- forgetting (APP 0.4) ----------
+    def _forget(self, app):
+        self.forgets += 1
+        w = app.cfg["wifi"]
+        w["ssid"], w["password"] = "", ""
+        try:
+            config.save()
+            self.why = ""
+        except Exception as e:                 # forgotten until the next restart only
+            self.why = "NOT WIPED FROM MEMORY: %s" % e
+        net.forget()
+        app.wifi_busy = False
+        app.wifi_state = net.status()          # 'off': the WiFi lamp goes out
+        app.update_leds()
+        self.net = None
+        self.typed = ""
+        self.first = True                      # from here on, as on a first start
+        self.page = "welcome"
+        app.redraw()
 
     # ---------- joining ----------
     def _join(self, app):
@@ -200,6 +239,10 @@ class WifiSetup(Screen):
         app.redraw()
 
     def tick(self, app, now):
+        if self.page == "saved":
+            if app.wifi_state != self.drawn_state:   # e.g. CONNECTING -> CONNECTED
+                return "full"
+            return None
         if self.page == "scan":
             if not self.drawn_scan:            # let "SCANNING" reach the screen first
                 self.drawn_scan = True
@@ -254,6 +297,11 @@ class WifiSetup(Screen):
             self._close(app)
         elif self.page == "fail":
             self._retry(app)
+        elif self.page == "saved":
+            self._close(app)                   # back to Settings
+        elif self.page == "forget":
+            self.page = "saved"                # the safe choice: KEEP IT
+            app.redraw()
         return True
 
     def on_touch(self, app, x, y):
@@ -289,6 +337,20 @@ class WifiSetup(Screen):
                 self._retry(app)
             elif inside(self.B_OTHER, x, y):
                 self._rescan(app)
+        elif p == "saved":
+            if inside(self.B_BACK, x, y):
+                self._close(app)
+            elif inside(self.B_CHANGE, x, y):
+                self._rescan(app)
+            elif inside(self.B_FORGET, x, y):
+                self.page = "forget"
+                app.redraw()
+        elif p == "forget":
+            if inside(self.B_KEEP, x, y):
+                self.page = "saved"
+                app.redraw()
+            elif inside(self.B_WIPE, x, y):
+                self._forget(app)
         return True
 
     def _choose(self, app, i):
@@ -412,8 +474,40 @@ class WifiSetup(Screen):
             u.text("THIS UNIT NEEDS YOUR WIFI FOR THE", cx, 222, 24, "text", "center")
             u.text("TIME, THE WEATHER AND THE TRAINS.", cx, 250, 24, "text", "center")
             u.text("YOU WILL NEED YOUR WIFI PASSWORD.", cx, 292, 24, "dim", "center")
+            if self.why:                       # FORGET couldn't wipe /config.json
+                u.text(self.why, 20, 318, 20, "red", max_w=U.W - 40)
             button(u, self.B_START, "SET UP WIFI", "bg", "amber", 32)
             u.text("OR PRESS THE KNOB TO SKIP FOR NOW", cx, 440, 20, "dim", "center")
+        elif p == "saved":
+            st = app.wifi_state
+            self.drawn_state = st
+            ssid, ip, rssi = net.info()
+            u.header(self.title, "SAVED NETWORK")
+            u.text("THIS UNIT JOINS", cx, 92, 24, "dim", "center")
+            u.text(app.wifi_creds()[0], cx, 128, 40, "cream", "center", max_w=U.W - 40)
+            if st == "up":
+                u.text("CONNECTED", cx, 196, 34, "green", "center")
+                if ip:
+                    u.text("ADDRESS " + ip, cx, 242, 24, "dim", "center")
+            elif st == "connecting":
+                u.text("CONNECTING", cx, 196, 34, "amber", "center")
+            else:
+                u.text("NOT CONNECTED", cx, 196, 34, "red", "center")
+                u.text("IT KEEPS TRYING ONCE A MINUTE", cx, 242, 24, "dim", "center")
+            button(u, self.B_CHANGE, "CHANGE NETWORK", "amber", "panel", 28)
+            button(u, self.B_BACK, "< BACK", "dim")
+            button(u, self.B_FORGET, "FORGET", "red")
+        elif p == "forget":
+            u.header("FORGET NETWORK")
+            u.text("FORGET THIS NETWORK?", cx, 100, U.T_HEAD, "amber", "center")
+            u.text(app.wifi_creds()[0], cx, 156, 34, "cream", "center", max_w=U.W - 40)
+            u.text("THE NETWORK AND ITS PASSWORD ARE", cx, 222, 24, "text", "center")
+            u.text("WIPED FROM THIS UNIT. IT GOES OFFLINE", cx, 250, 24, "text", "center")
+            u.text("AND SHOWS THE WELCOME PAGE, AS ON", cx, 278, 24, "text", "center")
+            u.text("ITS FIRST START.", cx, 306, 24, "text", "center")
+            u.text("PRESS THE KNOB TO KEEP IT", cx, 352, 20, "dim", "center")
+            button(u, self.B_KEEP, "KEEP IT", "bg", "amber", 28)
+            button(u, self.B_WIPE, "FORGET", "red", "panel", 28)
         elif p == "scan":
             u.header(self.title)
             u.text("LOOKING FOR NETWORKS", cx, 200, U.T_HEAD, "amber", "center")

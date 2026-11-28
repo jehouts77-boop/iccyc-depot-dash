@@ -6,10 +6,13 @@
 #     hanging up early is allowed, the caller just gets a shorter body
 #   - callers pull out the few JSON fields they need with the scan helpers
 #     below instead of json.loads() on a big response
-#   - (2026-10-17) a site that won't open a connection -> switch to a public
-#     DNS server and try once more; see PUBLIC_DNS below
+#   - (2026-10-17) a site that won't open a connection -> look it up again
+#     on a public DNS server and try once more; see _connect below
+#   - (2026-11-28, APP 0.4) names are looked up by dnsq.py, with a time limit
+#     and a memory of the answers, instead of getaddrinfo (no time limit)
 
 import time
+import dnsq
 from textutil import bytes_to_ascii
 
 try:
@@ -34,17 +37,13 @@ slow = None
 # (handed out by DHCP) kept answering api.adsb.lol with an address that
 # never accepts a connection, while a public DNS server gave a working one. A
 # gift unit can meet the same thing at any house, for any site. So: when a
-# connection can't be opened (or the name can't be looked up), switch the unit
-# to a public DNS server and try once more. It stays switched until the next
-# restart (or until the router's DHCP renews the lease and puts its own back -
-# then the same thing simply happens again if needed). Only the DNS server
-# changes; the unit's own address stays under DHCP.
-PUBLIC_DNS = ("1.1.1.1", "8.8.8.8")   # Cloudflare, then Google
+# connection can't be opened, the name is looked up again on a public DNS
+# server and tried once more. Until APP 0.4 this switched the whole unit to
+# the public server (network.ipconfig); since 0.4 dnsq.py asks the public
+# server for that one name, and the router's server stays in use otherwise.
 CONNECT_TIMEOUT_S = 5                 # opening the connection only (a good one took
 #                                       145 ms on the desk Presto); the request itself
 #                                       still gets the caller's timeout_s
-dns_now = None                        # None = the router's own; else the public one in use
-dns_switches = 0                      # times switched (Diagnostics)
 
 
 def wlan():
@@ -145,56 +144,39 @@ def scan():
     return True, nets
 
 
-def dns_server():
-    """The DNS server in use now, as text ('-' if unknown)."""
-    try:
-        return str(network.ipconfig("dns"))
-    except Exception:
-        pass
+def forget():
+    """Hang up and drop the network (Settings > WIFI > FORGET, APP 0.4):
+    status() reads 'off' until start_connect() is called again."""
+    global _ssid, _started
     w = wlan()
     try:
-        return w.ifconfig()[3] if w is not None and w.isconnected() else "-"
-    except Exception:
-        return "-"
-
-
-def use_public_dns():
-    """Switch to the next public DNS server. True if the switch worked.
-    network.ipconfig(dns=...) changes the DNS server alone; w.ifconfig((...))
-    would also fix the address and stop DHCP, so it is not used here."""
-    global dns_now, dns_switches
-    if network is None:
-        return False
-    nxt = PUBLIC_DNS[0] if dns_now not in PUBLIC_DNS else \
-        PUBLIC_DNS[(PUBLIC_DNS.index(dns_now) + 1) % len(PUBLIC_DNS)]
-    try:
-        network.ipconfig(dns=nxt)
+        if w is not None:
+            w.disconnect()
     except Exception as e:
-        print("dns: could not switch to %s: %s" % (nxt, e))
-        return False
-    dns_now = nxt
-    dns_switches += 1
-    print("dns: switched to", nxt)
-    return True
+        print("wifi disconnect error:", e)
+    _ssid = None
+    _started = None
+
+
+def dns_server():
+    """The router's DNS server, as text ('-' if unknown)."""
+    return dnsq.router_dns() or "-"
 
 
 def _connect(host, port, timeout_s, ph):
-    """Look the name up and open a plain connection to it. If either step fails,
-    switch to a public DNS server and try once more (see PUBLIC_DNS above).
-    ph[0] / ph[1] collect the lookup and connect times."""
+    """Look the name up (dnsq: time-limited, remembered) and open a plain
+    connection to it. If the connection can't be opened, look the name up
+    again on a public DNS server and try once more (see CONNECT_TIMEOUT_S
+    above). ph[0] / ph[1] collect the lookup and connect times."""
     import socket
     for attempt in (1, 2):
         t = time.ticks_ms()
         try:
-            addr = socket.getaddrinfo(host, port)[0][-1]
-        except OSError as e:
+            ip = dnsq.resolve(host, public_first=attempt == 2)
+            addr = dnsq.sockaddr(ip, port)
+        finally:
             ph[0] += time.ticks_diff(time.ticks_ms(), t)
-            if attempt == 1 and use_public_dns():
-                print("net: lookup of %s failed (%s) - trying again" % (host, e))
-                continue
-            raise
         t1 = time.ticks_ms()
-        ph[0] += time.ticks_diff(t1, t)
         s = socket.socket()
         s.settimeout(min(CONNECT_TIMEOUT_S, timeout_s))
         try:
@@ -202,8 +184,9 @@ def _connect(host, port, timeout_s, ph):
         except OSError as e:
             s.close()
             ph[1] += time.ticks_diff(time.ticks_ms(), t1)
-            if attempt == 1 and use_public_dns():
-                print("net: %s at %s did not answer (%s) - trying again" % (host, addr, e))
+            if attempt == 1:
+                print("net: %s at %s did not answer (%s) - trying again" % (host, ip, e))
+                dnsq.forget(host)
                 continue
             raise
         ph[1] += time.ticks_diff(time.ticks_ms(), t1)

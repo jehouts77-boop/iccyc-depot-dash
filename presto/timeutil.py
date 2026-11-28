@@ -19,20 +19,25 @@ sync_fails = 0
 
 
 def sync(host=None):
-    """Set the clock from NTP. True on success. Blocks up to ~1 s."""
+    """Set the clock from NTP. True on success. Blocks up to ~1 s (plus a
+    name lookup: at most ~4 s, usually none - dnsq remembers it)."""
     global last_sync, sync_tries, sync_fails
     sync_tries += 1
     if ntptime is None:
         sync_fails += 1
         return False
     try:
-        if host:
-            ntptime.host = host
+        if host:                          # APP 0.4: looked up by dnsq (time limit),
+            import dnsq                   # so ntptime's own lookup gets an address
+            ntptime.host = dnsq.resolve(host)
         ntptime.settime()
         last_sync = time.time()
         return True
     except Exception as e:
         print("NTP failed:", e)
+        if host:                          # ask afresh next time (pool.ntp.org rotates)
+            import dnsq
+            dnsq.forget(host)
         sync_fails += 1
         return False
 

@@ -39,7 +39,7 @@ import ui as U
 import screens
 from screens import fitz as fitz_rules
 
-VERSION = "0.3"
+VERSION = "0.4"           # 0.4 (2026-11-28): FORGET on Settings > WIFI; name lookups with a time limit (dnsq.py)
 POLL_MS = 20
 CHIME_MS = 250
 LOOP_MS = 10

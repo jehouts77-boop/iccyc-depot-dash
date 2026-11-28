@@ -35,6 +35,7 @@ try:
 except ImportError:
     import socket
 import aprs
+import dnsq
 
 SERVERS = (("rotate.aprs2.net", 14580), ("noam.aprs2.net", 14580))
 FILTER = "b/RS0ISS*/NA1SS* d/RS0ISS*/NA1SS*"
@@ -96,17 +97,15 @@ class Listener:
         login = self.cfg["iss"].get("aprs_login") or "ICCYC1"
         last = None
         for host, port in SERVERS:
-            try:
-                addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
+            try:                                  # APP 0.4: dnsq (time limit, IPv4 only)
+                addrs = [dnsq.sockaddr(dnsq.resolve(host), port)]
             except Exception as e:
                 last = e
                 continue
-            addrs = [a for a in addrs if a[0] == socket.AF_INET] + \
-                    [a for a in addrs if a[0] != socket.AF_INET]
-            for fam, typ, proto, _, addr in addrs:
+            for addr in addrs:
                 s = None
                 try:
-                    s = socket.socket(fam, typ, proto)
+                    s = socket.socket()
                     s.settimeout(CONNECT_TIMEOUT_S)
                     s.connect(addr)
                     s.send(("user %s pass -1 vers ICCYC-Console 1.0 filter %s\r\n"
@@ -120,6 +119,7 @@ class Listener:
                     return True
                 except Exception as e:
                     last = e
+                    dnsq.forget(host)             # ask afresh next time (round-robin names)
                     if s is not None:
                         try:
                             s.close()

@@ -6,6 +6,7 @@ import gc
 import os
 import time
 import net
+import dnsq
 import ota
 import otaguard as G
 import timeutil
@@ -92,11 +93,11 @@ class Diag(Screen):
                     (("idle", "PLAYING", "ERROR")[min(c.audio_state, 2)], c.clip_count,
                      c.done_count, app.chime.fired, app.chime.muted_reason), "text"))
         ssid, ip, rssi = net.info()
-        out.append(("WIFI %s  %s" % (app.wifi_state.upper(), ssid or "(no network set)"),
-                    "text"))
-        out.append(("   IP %s  RSSI %s  DNS %s%s" % (     # DNS: see net.PUBLIC_DNS (2026-10-17)
-            ip or "-", rssi if rssi is not None else "-", net.dns_server(),
-            " (switched %d)" % net.dns_switches if net.dns_switches else ""), "dim"))
+        out.append(("WIFI %s  %s  RSSI %s" % (app.wifi_state.upper(), ssid or "(no network set)",
+                                             rssi if rssi is not None else "-"), "text"))
+        # APP 0.4: name lookups by dnsq.py - counts instead of the DNS server
+        # (no room for another line: with both boards the page is full)
+        out.append(("   IP %s  %s" % (ip or "-", dnsq.summary()), "dim"))
         out.append(("NTP %s  tries %d  fails %d" % (
             "OK" if timeutil.last_sync else "NOT YET", timeutil.sync_tries, timeutil.sync_fails),
             "text"))
